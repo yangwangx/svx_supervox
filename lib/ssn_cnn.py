@@ -5,17 +5,21 @@ import torch.nn.functional as FF
 
 __all__ = ['SSN_CNN',]
 
-class Conv_bn_relu(nn.Module):
+def init_conv2d(num_in, num_out, kernel_size=3, padding=1, stride=1):
+    conv = nn.Conv2d(num_in, num_out, kernel_size=kernel_size, padding=padding, stride=stride)
+    conv.weight.data.normal_(std=0.001)
+    conv.bias.data.fill_(0)
+    return conv
+
+class Conv2d_bn_relu(nn.Module):
     def __init__(self, num_in, num_out, use_bn=True, use_affine=False):
-        super(Conv_bn_relu, self).__init__()
+        super(Conv2d_bn_relu, self).__init__()
         self.num_in = num_in
         self.num_out = num_out
         self.use_bn = use_bn
         self.use_affine = use_affine
         # conv1
-        self.conv1 = conv1 = nn.Conv2d(num_in, num_out, kernel_size=3, padding=1, stride=1)
-        conv1.weight.data.normal_(std=0.001)
-        conv1.bias.data.fill_(0)
+        self.conv1 = conv1 = init_conv2d(num_in, num_out, kernel_size=3, padding=1, stride=1)
         # bn1
         if use_bn:
             self.bn1 = bn1 = nn.BatchNorm2d(num_out, eps=1e-5, affine=use_affine)
@@ -29,11 +33,11 @@ class Conv_bn_relu(nn.Module):
         else:
             return FF.relu(self.conv1(x), inplace=True)
 
-def conv_bn_relu_layer(num_in, num_out):
-    return Conv_bn_relu(num_in, num_out, use_bn=True, use_affine=False)
+def conv2d_bn_relu_layer(num_in, num_out):
+    return Conv2d_bn_relu(num_in, num_out, use_bn=True, use_affine=False)
 
-def conv_relu_layer(num_in, num_out):
-    return Conv_bn_relu(num_in, num_out, use_bn=False)
+def conv2d_relu_layer(num_in, num_out):
+    return Conv2d_bn_relu(num_in, num_out, use_bn=False)
 
 def caffeZoom2d(x, zoom_factor, mode='bilinear'):
     B, C, H, W = x.shape
@@ -54,21 +58,21 @@ class SSN_CNN(nn.Module):
         self.num_out = num_out
         self.num_ch = num_ch
         # 
-        self.conv1 = conv_bn_relu_layer(num_in, num_ch)
-        self.conv2 = conv_bn_relu_layer(num_ch, num_ch)
+        self.conv1 = conv2d_bn_relu_layer(num_in, num_ch)
+        self.conv2 = conv2d_bn_relu_layer(num_ch, num_ch)
         self.pool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)
         #
-        self.conv3 = conv_bn_relu_layer(num_ch, num_ch)
-        self.conv4 = conv_bn_relu_layer(num_ch, num_ch)
+        self.conv3 = conv2d_bn_relu_layer(num_ch, num_ch)
+        self.conv4 = conv2d_bn_relu_layer(num_ch, num_ch)
         self.pool2 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1, ceil_mode=True)
         #
-        self.conv5 = conv_bn_relu_layer(num_ch, num_ch)
-        self.conv6 = conv_bn_relu_layer(num_ch, num_ch)
+        self.conv5 = conv2d_bn_relu_layer(num_ch, num_ch)
+        self.conv6 = conv2d_bn_relu_layer(num_ch, num_ch)
         #
-        self.conv7 = conv_relu_layer(num_in + num_ch*3, num_out)
+        self.conv7 = conv2d_relu_layer(num_in + num_ch*3, num_out)
         if pretrained_npz != '':
             self.load_pretrained_npz(pretrained_npz=pretrained_npz)
-    
+
     def load_pretrained_npz(self, pretrained_npz):
         print('loading pretrained CNN module from [{}]'.format(pretrained_npz))
         # load pretrained weights
@@ -90,5 +94,5 @@ class SSN_CNN(nn.Module):
         conv6 = self.conv6(self.conv5(self.pool2(conv4)))
         conv4 = caffeCrop2d_as(caffeZoom2d(conv4, zoom_factor=2), conv2.shape)
         conv6 = caffeCrop2d_as(caffeZoom2d(conv6, zoom_factor=4), conv2.shape)
-        conv7 = self.conv7(torch.cat([x, conv2, conv4, conv6], dim=1))
-        return torch.cat((x, conv7), dim=1)
+        return self.conv7(torch.cat([x, conv2, conv4, conv6], dim=1))
+
