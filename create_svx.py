@@ -1,7 +1,6 @@
 from utils import *
-from cnn_module import CNN_module
 
-__all__ = ['SVX', 'compute_loss']
+__all__ = ['SVX', 'SVX_hier', 'compute_loss']
 
 def get_pFeat_tyxlab(vid_lab, time_scale, pos_scale, color_scale):
     """combines time (T), position (YX), and color (LAB) channels
@@ -37,7 +36,7 @@ class SVX(nn.Module):
         self.softscale = softscale
         self.use_cnn = use_cnn
         if use_cnn:
-            self.cnn = CNN_module(num_in=num_in, num_out=num_out, num_ch=num_ch)
+            self.cnn = SVX_CNN(num_in=num_in, num_out=num_out, num_ch=num_ch)
         else:
             self.cnn = None
 
