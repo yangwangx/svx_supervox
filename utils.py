@@ -7,7 +7,6 @@ import cv2, imageio
 from PIL import Image
 from skimage.color import rgb2lab
 from skimage.util import img_as_float
-# from scipy.io import loadmat
 
 import torch
 import torch.nn as nn

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as FF
 
-__all__ = ['CNN_module']
+__all__ = ['SVX_CNN',]
 
 def init_conv3d(num_in, num_out, kernel_size=3, padding=1, stride=1):
     conv = nn.Conv3d(num_in, num_out, kernel_size=kernel_size, padding=padding, stride=stride)
@@ -52,9 +52,9 @@ def caffeCrop3d_as(x, ref_shape):
     assert Lx >= L and Hx >= H and Wx >= W, "size of x should not be smaller than ref"
     return x[:, :, :L, :H, :W]
 
-class CNN_module(nn.Module):
+class SVX_CNN(nn.Module):
     def __init__(self, num_in, num_out, num_ch=64):
-        super(CNN_module, self).__init__()
+        super(SVX_CNN, self).__init__()
         self.num_in = num_in
         self.num_out = num_out
         self.num_ch = num_ch
@@ -74,31 +74,6 @@ class CNN_module(nn.Module):
         self.conv7_c2 = init_conv3d(num_ch, num_out)
         self.conv7_c4 = init_conv3d(num_ch, num_out)
         self.conv7_c6 = init_conv3d(num_ch, num_out)
-
-    """ naming intermediate results would increase memory usage
-    def forward(self, x):
-        #
-        conv1 = self.conv1(x)
-        conv2 = self.conv2(conv1)
-        pool1 = self.pool1(conv2)
-        #
-        conv3 = self.conv3(pool1)
-        conv4 = self.conv4(conv3)
-        pool2 = self.pool2(conv4)
-        #
-        conv5 = self.conv5(pool2)
-        conv6 = self.conv6(conv5)
-        #
-        conv4_upsample = caffeZoom3d(conv4, zoom_factor=2)
-        conv6_upsample = caffeZoom3d(conv6, zoom_factor=4)
-        conv4_upsample_crop = caffeCrop3d_as(conv4_upsample, conv2.shape)
-        conv6_upsample_crop = caffeCrop3d_as(conv6_upsample, conv2.shape)
-        #
-        conv_concat = torch.cat([x, conv2, conv4_upsample_crop, conv6_upsample_crop], dim=1)
-        conv7 = self.conv7(conv_concat)
-        conv_comb = torch.cat([x, conv7], dim=1)
-        return conv_comb
-    """
 
     def forward(self, x):
         y = self.conv7_x(x)

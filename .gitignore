@@ -1,7 +1,6 @@
 __pycache__
 *.egg-info
 data
-bsds_test
 results
 dist
 build
