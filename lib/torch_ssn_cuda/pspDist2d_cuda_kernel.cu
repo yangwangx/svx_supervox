@@ -87,7 +87,7 @@ __global__ void pspDist2d_cuda_backward_kernel(
     torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> grad_spFeat,
     const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> pFeat,
     const torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> spFeat,
-    const torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> init_spIndx,
+    const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> init_spIndx,
     int depth, int height, int width, int Kh, int Kw, int K) {
     // indexing
     const int n = blockIdx.y;
