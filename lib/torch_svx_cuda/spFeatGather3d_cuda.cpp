@@ -5,26 +5,26 @@
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
 /* Forward */
-// {spFeat, spSize} = spFeat_cuda.forward(pFeat, init_spIndx, K, ignore_idx_value, ignore_feature_value)
+// spFeat, spSize = spFeatGather3d_cuda.forward(pFeat, init_spIndx, K, ignore_idx_value, ignore_feature_value)
 
-std::vector<torch::Tensor> spFeat_cuda_forward(
+std::vector<torch::Tensor> spFeatGather3d_cuda_forward(
     const torch::Tensor pFeat,
     const torch::Tensor init_spIndx,
-    const int K, 
+    const int K,
     const int ignore_idx_value,
-    const float ignore_feature_value);  // return {spFeat, spSize};
+    const int ignore_feature_value);  // return {spFeat, spSize};
 
-std::vector<torch::Tensor> spFeat_forward(
+std::vector<torch::Tensor> spFeatGather3d_forward(
     const torch::Tensor pFeat,
     const torch::Tensor init_spIndx,
-    const int K, 
+    const int K,
     const int ignore_idx_value,
-    const float ignore_feature_value) {
+    const int ignore_feature_value) {
     // check
     CHECK_INPUT(pFeat);
     CHECK_INPUT(init_spIndx);
     // forward
-    return spFeat_cuda_forward(pFeat, init_spIndx, K, ignore_idx_value, ignore_feature_value);
+    return spFeatGather3d_cuda_forward(pFeat, init_spIndx, K, ignore_idx_value, ignore_feature_value);
 }
 
 /* Backward */
@@ -32,6 +32,5 @@ std::vector<torch::Tensor> spFeat_forward(
 
 /* Python Binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &spFeat_forward, "spFeat forward (CUDA)");
-//   m.def("backward", &spFeat_backward, "spFeat backward (CUDA)");
+    m.def("forward", &spFeatGather3d_forward, "spFeatGather3d forward (CUDA)");
 }
