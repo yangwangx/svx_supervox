@@ -26,7 +26,7 @@ __global__ void spFeatSmear2d_cuda_forward_kernel(
     const torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> spFeat,
     const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> spIndx,
     torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> pFeat,
-    int batch_size, int depth, int height, int width, int K) {
+    int depth, int height, int width, int K) {
     // indexing
     const int n = blockIdx.y;
     const int d = blockIdx.x * blockDim.x + threadIdx.x;
@@ -45,7 +45,7 @@ __global__ void spFeatSmear2d_cuda_backward_kernel(
     const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> grad_pFeat,
     const torch::PackedTensorAccessor<scalar_t,4,torch::RestrictPtrTraits,size_t> spIndx,
     torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> grad_spFeat,
-    int batch_size, int depth, int height, int width) {
+    int depth, int height, int width) {
     // indexing
     const int n = blockIdx.y;
     const int d = blockIdx.x * blockDim.x + threadIdx.x;
@@ -85,7 +85,6 @@ torch::Tensor spFeatSmear2d_cuda_forward(
 
     return pFeat;
 }
-
 
 torch::Tensor spFeatSmear2d_cuda_backward(
     const torch::Tensor grad_pFeat,  // B C H W
