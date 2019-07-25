@@ -1,4 +1,4 @@
-from DAVIS16 import *  # dataset
+from DAVIS16 import *
 from utils import *
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
@@ -8,7 +8,7 @@ parser = get_base_parser()
 parser.add_argument('--crop_size', default=[16, 201, 201], type=int, nargs='+', dest='crop_size')
 # model input
 parser.add_argument('--p_scale', default=0.25, type=float, help='control factor for TYX channel')
-parser.add_argument('--color_scale', default=0.26, type=float, help='scale factor for LAB channel')
+parser.add_argument('--lab_scale', default=0.26, type=float, help='scale factor for LAB channel')
 parser.add_argument('--n_sv', default=100, type=int, help='number of superpixels in frame')
 parser.add_argument('--t_sv', default=3, type=int, help='number of superpixels in time')
 # cnn
@@ -40,31 +40,33 @@ def create_dataloader():
 
 def create_model():
     model = edict()
-    if opts.hier_ratio == 1.0:
-        model.svx = SVX(use_cnn=opts.use_cnn, num_in=6, num_out=14, num_ch=32, softscale=opts.softscale)
-    else:
-        model.svx = SVX_hier(use_cnn=opts.use_cnn, num_in=6, num_out=14, num_ch=32, 
-                             softscale=opts.softscale, ratio=opts.hier_ratio)
+    model.svx = SVX(use_cnn=opts.use_cnn, num_in=6, num_out=14, num_ch=32)
     for key in model.keys():
         model[key] = model[key].to(DEVICE)
         if DEVICE != "cpu": model[key] = nn.DataParallel(model[key])
     return model
 
-def _configure(svx, vid_shape, 
+def __configure(svx, vid_shape,
                t_sv=opts.t_sv, n_sv=opts.n_sv,
-               p_scale=opts.p_scale, color_scale=opts.color_scale,
-               unfold=opts.unfold):
+               p_scale=opts.p_scale, lab_scale=opts.lab_scale,
+               softscale=opts.softscale, num_steps=opts.unfold):
     if hasattr(svx, 'module'):
         svx = svx.module
-    return svx.configure(vid_shape, t_sv, n_sv, p_scale, color_scale, unfold)
+    return svx.configure(vid_shape, t_sv, n_sv, p_scale, lab_scale, softscale, num_steps)
 
-def get_init_spIndx(vid_shape, Kl=opts.t_sv, Khw=opts.n_sv):
+def __enforce_connectivity(svMap):
+    segment_size = svMap.size / np.unique(svMap).size
+    min_size = int(0.06 * segment_size)
+    max_size = int(5 * segment_size)
+    return enforce_connectivity(svMap, min_size, max_size)
+
+def get_init_spIndx(vid_shape, t_sv, n_sv):
     B, _, L, H, W = vid_shape
-    init_spIndx, Kh, Kw = get_spixel_init(Khw, H, W)
+    init_spIndx, Kh, Kw = get_spixel_init(n_sv, H, W)
     init_spIndx = torch.from_numpy(init_spIndx).float() # H W
     init_spIndx = init_spIndx.view(1, H, W).repeat(L, 1, 1)  # L H W
     for t in range(L):
-        init_spIndx[t] += Kh * Kw * np.floor(t * Kl / L)
+        init_spIndx[t] += Kh * Kw * np.floor(t * t_sv / L)
     init_spIndx = init_spIndx.view(1, 1, L, H, W).expand(B, 1, L, H, W)  # B 1 L H W
     return init_spIndx.to(DEVICE)
 
@@ -81,12 +83,13 @@ def train(epoch, trLD, model, optimizer):
         # forward: samples => outputs, losses
         if True:
             vid, label, onehot = list(map(lambda x: x.to(DEVICE), samples))
-            L, H, W, Kl, Kh, Kw, Khw, K = _configure(model.svx, vid.shape)
-            init_spIndx = get_init_spIndx(vid.shape, Kl=opts.t_sv, Khw=opts.n_sv)
+            L, H, W, Kl, Kh, Kw, Khw, K = __configure(model.svx, vid.shape)
+            init_spIndx = get_init_spIndx(vid.shape, t_sv=opts.t_sv, n_sv=opts.n_sv)
             pFeat, spFeat, final_assoc, final_spIndx = model.svx(vid, init_spIndx)
         if True:
+            pFeat_tyxlab = pFeat[:, :6].contiguous()
             loss_pos, loss_col, loss_label = \
-                compute_loss(pFeat, final_assoc, init_spIndx, final_spIndx, onehot, Kl, Kh, Kw)
+                compute_svx_loss(pFeat_tyxlab, final_assoc, init_spIndx, final_spIndx, onehot, Kl, Kh, Kw)
             loss = opts.w_label * loss_label + opts.w_pos * loss_pos + opts.w_col * loss_col
         # backward
         if opts.BtCount % opts.BtMerge == 0:
@@ -127,17 +130,13 @@ def evaluate(epoch, evalLD, model):
             with torch.no_grad():
                 vid = samples[0].to(DEVICE)
                 gtList = samples[1].cpu().long().numpy().flatten().tolist()
-                L, H, W, Kl, Kh, Kw, Khw, K = _configure(model.svx, vid.shape)
-                init_spIndx = get_init_spIndx(vid.shape, Kl=opts.t_sv, Khw=opts.n_sv)
+                L, H, W, Kl, Kh, Kw, Khw, K = __configure(model.svx, vid.shape)
+                init_spIndx = get_init_spIndx(vid.shape, t_sv=opts.t_sv, n_sv=opts.n_sv)
                 _, _, _, final_spIndx = model.svx(vid, init_spIndx)
                 svMap = np.squeeze(final_spIndx.cpu().numpy(), axis=(0,1)).astype(int)  # L H W
-            if True: # enforce_connectivity
-                segment_size = L * H * W / (K * opts.hier_ratio)
-                min_size = int(0.06 * segment_size)
-                max_size = int(5 * segment_size)
-                svMap_connected = enforce_connectivity(svMap, min_size, max_size)
-            nSV = svMap_connected.max() + 1
-            spList = svMap_connected.flatten().tolist()
+                svMap =  __enforce_connectivity(svMap)
+            nSV = svMap.max() + 1
+            spList = svMap.flatten().tolist()
             asa = computeASA(spList, gtList, 0)
         # logging
         values = [asa, nSV]
@@ -176,8 +175,8 @@ def evaluate_slice(epoch, evalLD, model):
                 for sv_s, sv_e, frm_s, frm_e in zip(slice_sv_starts, slice_sv_ends, slice_frm_starts, slice_frm_ends):
                     _vid = vid[:, :, frm_s:frm_e]  # _vid of this slice
                     _t_sv = sv_e - sv_s  # _t_sv of this slice                    
-                    _L, _H, _W, _Kl, _Kh, _Kw, _Khw, _K = _configure(model.svx, _vid.shape, t_sv=_t_sv)
-                    _init_spIndx = get_init_spIndx(_vid.shape, Kl=_t_sv, Khw=opts.n_sv)
+                    _L, _H, _W, _Kl, _Kh, _Kw, _Khw, _K = __configure(model.svx, _vid.shape, t_sv=_t_sv)
+                    _init_spIndx = get_init_spIndx(_vid.shape, t_sv=_t_sv, n_sv=opts.n_sv)
                     _, _, _, _final_spIndx = model.svx(_vid, _init_spIndx)
                     _svMap = np.squeeze(_final_spIndx.cpu().numpy(), axis=(0,1)).astype(int)  # L H W
                     svMap.append(_svMap)
@@ -185,13 +184,9 @@ def evaluate_slice(epoch, evalLD, model):
                 for i in range(1, len(svMap)):
                     svMap[i] += svMap[i-1].max() + 1
                 svMap = np.concatenate(svMap, axis=0)
-            if True: # enforce_connectivity
-                segment_size = L * _H * _W / (opts.t_sv * _Kl * _Kw * opts.hier_ratio)
-                min_size = int(0.06 * segment_size)
-                max_size = int(5 * segment_size)
-                svMap_connected = enforce_connectivity(svMap, min_size, max_size)
-            nSV = svMap_connected.max() + 1
-            spList = svMap_connected.flatten().tolist()
+                svMap = __enforce_connectivity(svMap)
+            nSV = svMap.max() + 1
+            spList = svMap.flatten().tolist()
             asa = computeASA(spList, gtList, 0)
         # logging
         values = [asa, nSV]

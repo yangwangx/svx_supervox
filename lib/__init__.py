@@ -5,4 +5,3 @@ from .torch_svx_cuda import *
 from .cnn_ssn import *
 from .cnn_svx import *
 from .net import *
-from .loss import *
