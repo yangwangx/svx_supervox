@@ -2,7 +2,7 @@ from .connectivity import *
 from .evalSP import *
 from .torch_ssn_cuda import *
 from .torch_svx_cuda import *
-from .lib_utils import *
-from .ssn_cnn import *
-from .svx_cnn import *
-from .svx_net import *
+from .cnn_ssn import *
+from .cnn_svx import *
+from .net import *
+from .loss import *

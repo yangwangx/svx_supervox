@@ -84,4 +84,3 @@ class SVX_CNN(nn.Module):
         y += self.conv7_c4(caffeCrop3d_as(caffeZoom3d(x, zoom_factor=2), _shape))
         y += self.conv7_c6(caffeCrop3d_as(caffeZoom3d(self.conv6(self.conv5(self.pool2(x))), zoom_factor=4), _shape))
         return FF.relu(y, inplace=True)
-

@@ -95,4 +95,3 @@ class SSN_CNN(nn.Module):
         conv4 = caffeCrop2d_as(caffeZoom2d(conv4, zoom_factor=2), conv2.shape)
         conv6 = caffeCrop2d_as(caffeZoom2d(conv6, zoom_factor=4), conv2.shape)
         return self.conv7(torch.cat([x, conv2, conv4, conv6], dim=1))
-
