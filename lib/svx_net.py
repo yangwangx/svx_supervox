@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as FF
 from .torch_ssn_cuda import *
 from .torch_svx_cuda import *
-from .torch_funcs import *
 
 __all__ = ['get_pFeat_yxlab', 'get_pFeat_tyxlab',  
            'SVX', 'SVX_hier', 'compute_loss']
@@ -161,6 +160,24 @@ def compute_loss(pFeat, final_psp_assoc, init_spIndx, final_spIndx, onehot, Kl, 
     B, C, L, H, W = recon_label.shape
     loss_label = FF.kl_div((recon_label+1e-8).log(), onehot, reduction='batchmean') / (L * H * W)
     return loss_pos, loss_col, loss_label
+
+def batch_pairwise_distances_col(x, y=None):
+    """ Computes the pairwise euclidean distances between cols of x and cols of y.
+    Args:
+        x: torch tensor of shape (b, d, m)
+        y: torch tensor of shape (b, d, n), or None
+    Returns:
+        dist: torch tensor of shape (b, m, n), or (b, m, m)
+    """
+    B, _, M = x.shape
+    x_norm = (x**2).sum(dim=1).view(B, -1, 1)
+    if y is not None:
+        y_norm = (y**2).sum(dim=1).view(B, 1, -1)
+    else:
+        y = x
+        y_norm = x_norm.view(B, 1, -1)
+    dist = x_norm + y_norm - 2.0 * torch.bmm(torch.transpose(x, 1, 2), y)
+    return dist
 
 def init_kmeans_feature(spFeat, hier_K):
     with torch.no_grad():
