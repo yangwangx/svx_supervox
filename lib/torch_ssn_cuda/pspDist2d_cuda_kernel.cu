@@ -59,7 +59,6 @@ __global__ void pspDist2d_cuda_forward_kernel(
             rel_idx_w = 0;
             invalid_spixel = true;
         }
-
         int spix_idx_w = spix_idx_h + rel_idx_w;
         if (spix_idx_w < K && spix_idx_w > -1) {
             spix_idx = spix_idx_w;
@@ -120,7 +119,6 @@ __global__ void pspDist2d_cuda_backward_kernel(
             rel_idx_w = 0;
             invalid_spixel = true;
         }
-
         int spix_idx_w = spix_idx_h + rel_idx_w;
         if (spix_idx_w < K && spix_idx_w > -1) {
             spix_idx = spix_idx_w;

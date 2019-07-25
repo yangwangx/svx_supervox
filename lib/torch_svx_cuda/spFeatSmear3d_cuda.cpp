@@ -5,43 +5,43 @@
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
 /* Forward */
-// img_spFeat = smear_cuda.forward(spFeat, spIndx)
+// pFeat = spFeatSmear3d_cuda.forward(spFeat, spIndx)
 
-torch::Tensor smear_cuda_forward(
+torch::Tensor spFeatSmear3d_cuda_forward(
     const torch::Tensor spFeat,
-    const torch::Tensor spIndx);  // return img_spFeat;
+    const torch::Tensor spIndx);  // return pFeat;
 
-torch::Tensor smear_forward(
+torch::Tensor spFeatSmear3d_forward(
     const torch::Tensor spFeat,
     const torch::Tensor spIndx) {
     // check
     CHECK_INPUT(spFeat);
     CHECK_INPUT(spIndx);
     // forward
-    return smear_cuda_forward(spFeat, spIndx);
+    return spFeatSmear3d_cuda_forward(spFeat, spIndx);
 }
 
 /* Backward */
-//  grad_spFeat = smear_cuda.backward(grad_img_spFeat, spIndx, K)
+//  grad_spFeat = spFeatSmear3d_cuda.backward(grad_pFeat, spIndx, K)
 
-torch::Tensor smear_cuda_backward(
-    const torch::Tensor grad_img_spFeat,
+torch::Tensor spFeatSmear3d_cuda_backward(
+    const torch::Tensor grad_pFeat,
     const torch::Tensor spIndx,
     const int K);  // return grad_spFeat;
 
-torch::Tensor smear_backward(
-    const torch::Tensor grad_img_spFeat,
+torch::Tensor spFeatSmear3d_backward(
+    const torch::Tensor grad_pFeat,
     const torch::Tensor spIndx,
     const int K) {
     // check
-    CHECK_INPUT(grad_img_spFeat);
+    CHECK_INPUT(grad_pFeat);
     CHECK_INPUT(spIndx);
     // backward
-    return smear_cuda_backward(grad_img_spFeat, spIndx, K);
+    return spFeatSmear3d_cuda_backward(grad_pFeat, spIndx, K);
 }
 
 /* Python Binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &smear_forward, "smear forward (CUDA)");
-  m.def("backward", &smear_backward, "smear backward (CUDA)");
+  m.def("forward", &spFeatSmear3d_forward, "spFeatSmear3d forward (CUDA)");
+  m.def("backward", &spFeatSmear3d_backward, "spFeatSmear3d backward (CUDA)");
 }

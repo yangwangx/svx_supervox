@@ -5,9 +5,9 @@
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
 /* Forward */
-// sqdist = psp_sqdist_cuda.forward(pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
+// sqdist = pspDist3d_cuda.forward(pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
 
-torch::Tensor psp_sqdist_cuda_forward(
+torch::Tensor pspDist3d_cuda_forward(
     const torch::Tensor pFeat,
     const torch::Tensor spFeat,
     const torch::Tensor init_spIndx,
@@ -15,7 +15,7 @@ torch::Tensor psp_sqdist_cuda_forward(
     const int Kh,
     const int Kw);  // return sqdist;
 
-torch::Tensor psp_sqdist_forward(
+torch::Tensor pspDist3d_forward(
     const torch::Tensor pFeat,
     const torch::Tensor spFeat,
     const torch::Tensor init_spIndx,
@@ -27,13 +27,13 @@ torch::Tensor psp_sqdist_forward(
     CHECK_INPUT(spFeat);
     CHECK_INPUT(init_spIndx);
     // forward
-    return psp_sqdist_cuda_forward(pFeat, spFeat, init_spIndx, Kl, Kh, Kw);
+    return pspDist3d_cuda_forward(pFeat, spFeat, init_spIndx, Kl, Kh, Kw);
 }
 
 /* Backward */
-// grad_pFeat, grad_spFeat = psp_sqdist_cuda.backward(grad_sqdist, sqdist, pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
+// grad_pFeat, grad_spFeat = pspDist3d_cuda.backward(grad_sqdist, sqdist, pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
 
-std::vector<torch::Tensor> psp_sqdist_cuda_backward(
+std::vector<torch::Tensor> pspDist3d_cuda_backward(
     const torch::Tensor grad_sqdist,
     const torch::Tensor pFeat,
     const torch::Tensor spFeat,
@@ -42,7 +42,7 @@ std::vector<torch::Tensor> psp_sqdist_cuda_backward(
     const int Kh,
     const int Kw);  // return {grad_pFeat, grad_spFeat};
 
-std::vector<torch::Tensor> psp_sqdist_backward(
+std::vector<torch::Tensor> pspDist3d_backward(
     const torch::Tensor grad_sqdist,
     const torch::Tensor pFeat,
     const torch::Tensor spFeat,
@@ -56,11 +56,11 @@ std::vector<torch::Tensor> psp_sqdist_backward(
     CHECK_INPUT(spFeat);
     CHECK_INPUT(init_spIndx);
     // backward
-    return psp_sqdist_cuda_backward(grad_sqdist, pFeat, spFeat, init_spIndx, Kl, Kh, Kw);
+    return pspDist3d_cuda_backward(grad_sqdist, pFeat, spFeat, init_spIndx, Kl, Kh, Kw);
 }
 
 /* Python Binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &psp_sqdist_forward, "psp_sqdist forward (CUDA)");
-  m.def("backward", &psp_sqdist_backward, "psp_sqdist backward (CUDA)");
+    m.def("forward", &pspDist3d_forward, "pspDist3d forward (CUDA)");
+    m.def("backward", &pspDist3d_backward, "pspDist3d backward (CUDA)");
 }

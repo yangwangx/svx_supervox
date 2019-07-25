@@ -57,6 +57,6 @@ std::vector<torch::Tensor> pspDist2d_backward(
 
 /* Python Binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &pspDist2d_forward, "pspDist2d forward (CUDA)");
-  m.def("backward", &pspDist2d_backward, "pspDist2d backward (CUDA)");
+    m.def("forward", &pspDist2d_forward, "pspDist2d forward (CUDA)");
+    m.def("backward", &pspDist2d_backward, "pspDist2d backward (CUDA)");
 }

@@ -5,35 +5,35 @@
 #define CHECK_INPUT(x) CHECK_CUDA(x); CHECK_CONTIGUOUS(x)
 
 /* Forward */
-// spFeat, spWght, = spFeatUpdate_cuda.forward(pFeat, assoc, init_spIndx, Kh, Kw)
+// spFeat, spWght, = spFeatUpdate3d_cuda.forward(pFeat, assoc, init_spIndx, Kl, Kh, Kw)
 
-std::vector<torch::Tensor> spFeatUpdate_cuda_forward(
+std::vector<torch::Tensor> spFeatUpdate3d_cuda_forward(
     const torch::Tensor pFeat,
     const torch::Tensor assoc,
     const torch::Tensor init_spIndx,
-    const int Kl, 
-    const int Kh, 
+    const int Kl,
+    const int Kh,
     const int Kw);  // return {spFeat, spWght};
 
-std::vector<torch::Tensor> spFeatUpdate_forward(
+std::vector<torch::Tensor> spFeatUpdate3d_forward(
     const torch::Tensor pFeat,
     const torch::Tensor assoc,
     const torch::Tensor init_spIndx,
-    const int Kl, 
-    const int Kh, 
+    const int Kl,
+    const int Kh,
     const int Kw) {
     // check
     CHECK_INPUT(pFeat);
     CHECK_INPUT(assoc);
     CHECK_INPUT(init_spIndx);
     // forward
-    return spFeatUpdate_cuda_forward(pFeat, assoc, init_spIndx, Kl, Kh, Kw);
+    return spFeatUpdate3d_cuda_forward(pFeat, assoc, init_spIndx, Kl, Kh, Kw);
 }
 
 /* Backward */
-// grad_pFeat, grad_assoc = spFeatUpdate_cuda.backward(grad_spFeat, spFeat, spWght, Kh, Kw)
+// grad_pFeat, grad_assoc = spFeatUpdate3d_cuda.backward(grad_spFeat, spFeat, spWght, Kh, Kw)
 
-std::vector<torch::Tensor> spFeatUpdate_cuda_backward(
+std::vector<torch::Tensor> spFeatUpdate3d_cuda_backward(
     const torch::Tensor grad_spFeat,
     const torch::Tensor spFeat,
     const torch::Tensor spWght,
@@ -44,7 +44,7 @@ std::vector<torch::Tensor> spFeatUpdate_cuda_backward(
     const int Kh,
     const int Kw);  // return {grad_pFeat, grad_assoc};
 
-std::vector<torch::Tensor> spFeatUpdate_backward(
+std::vector<torch::Tensor> spFeatUpdate3d_backward(
     const torch::Tensor grad_spFeat,
     const torch::Tensor spFeat,
     const torch::Tensor spWght,
@@ -62,11 +62,11 @@ std::vector<torch::Tensor> spFeatUpdate_backward(
     CHECK_INPUT(assoc);
     CHECK_INPUT(init_spIndx);
     // backward
-    return spFeatUpdate_cuda_backward(grad_spFeat, spFeat, spWght, pFeat, assoc, init_spIndx, Kl, Kh, Kw);
+    return spFeatUpdate3d_cuda_backward(grad_spFeat, spFeat, spWght, pFeat, assoc, init_spIndx, Kl, Kh, Kw);
 }
 
 /* Python Binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &spFeatUpdate_forward, "spFeatUpdate forward (CUDA)");
-  m.def("backward", &spFeatUpdate_backward, "spFeatUpdate backward (CUDA)");
+    m.def("forward", &spFeatUpdate3d_forward, "spFeatUpdate3d forward (CUDA)");
+    m.def("backward", &spFeatUpdate3d_backward, "spFeatUpdate3d backward (CUDA)");
 }

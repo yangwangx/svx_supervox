@@ -60,7 +60,6 @@ __global__ void spFeatUpdate2d_cuda_forward_kernel(
             rel_idx_w = 0;
             invalid_spixel = true;
         }
-
         int spix_idx_w = spix_idx_h + rel_idx_w;
         if (spix_idx_w < K && spix_idx_w > -1) {
             spix_idx = spix_idx_w;
@@ -68,7 +67,7 @@ __global__ void spFeatUpdate2d_cuda_forward_kernel(
             spix_idx = spix_idx_h;
             invalid_spixel = true;
         }
-
+        //
         if ( !invalid_spixel ) {
             for (int k = 0; k < depth; k++) {
                 atomicAdd(&spFeat[n][k][spix_idx], pFeat[n][k][h][w] * assoc[n][c][h][w]);
@@ -141,7 +140,6 @@ __global__ void spFeatUpdate2d_cuda_backward_kernel(
             rel_idx_w = 0;
             invalid_spixel = true;
         }
-
         int spix_idx_w = spix_idx_h + rel_idx_w;
         if (spix_idx_w < K && spix_idx_w > -1) {
             spix_idx = spix_idx_w;
@@ -149,7 +147,7 @@ __global__ void spFeatUpdate2d_cuda_backward_kernel(
             spix_idx = spix_idx_h;
             invalid_spixel = true;
         }
-
+        //
         if ( !invalid_spixel ) {
             bool nonzeroWght = (spWght[n][spix_idx] > 0.001);
             for (int k = 0; k < depth; k++) {

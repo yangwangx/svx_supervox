@@ -1,9 +1,9 @@
 import torch
-import psp_sqdist_3d_cuda
+import pspDist3d_cuda
 
-__all__ = ['compute_sqdist']
+__all__ = ['pspDist3d']
 
-class PSP_sqdist(torch.autograd.Function):
+class PSPDist3d(torch.autograd.Function):
     """computes pairwise eucledian squared distance between pixels and surrounding superpixels.
     Args:
         pFeat is of size BxCxLxHxW  - pixel feature
@@ -21,7 +21,7 @@ class PSP_sqdist(torch.autograd.Function):
         assert sB == B and sC == C and iB == B and iC == 1
         assert K == Kl * Kh * Kw
         # forward
-        sqdist = psp_sqdist_3d_cuda.forward(pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
+        sqdist = pspDist3d_cuda.forward(pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
         # context
         variables = [pFeat, spFeat, init_spIndx]
         ctx.save_for_backward(*variables)
@@ -34,8 +34,8 @@ class PSP_sqdist(torch.autograd.Function):
         pFeat, spFeat, init_spIndx = ctx.saved_variables
         Kl, Kh, Kw = ctx.Kl, ctx.Kh, ctx.Kw
         # backward
-        grad_pFeat, grad_spFeat = psp_sqdist_3d_cuda.backward(grad_sqdist.contiguous(),
+        grad_pFeat, grad_spFeat = pspDist3d_cuda.backward(grad_sqdist.contiguous(),
             pFeat, spFeat, init_spIndx, Kl, Kh, Kw)
         return grad_pFeat, grad_spFeat, None, None, None, None
 
-compute_sqdist = PSP_sqdist.apply
+pspDist3d = PSPDist3d.apply

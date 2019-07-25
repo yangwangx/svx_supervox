@@ -2,33 +2,30 @@ from setuptools import setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
-    name='pytorch_supervoxel_cuda',
+    name='pytorch_svx_cuda',
     ext_modules=[
-        CUDAExtension('spFeat_3d_cuda', [  # no backward
-            'spFeat_cuda.cpp',
-            'spFeat_cuda_kernel.cu',
+        CUDAExtension('spFeatGather3d_cuda', [  # no backward
+            'spFeatGather3d_cuda.cpp',
+            'spFeatGather3d_cuda_kernel.cu',
         ]),
-        CUDAExtension('spFeatUpdate_3d_cuda', [
-            'spFeatUpdate_cuda.cpp',
-            'spFeatUpdate_cuda_kernel.cu',
+        CUDAExtension('spFeatUpdate3d_cuda', [
+            'spFeatUpdate3d_cuda.cpp',
+            'spFeatUpdate3d_cuda_kernel.cu',
         ]),
-        CUDAExtension('psp_sqdist_3d_cuda', [
-            'psp_sqdist_cuda.cpp',
-            'psp_sqdist_cuda_kernel.cu',
+        CUDAExtension('pspDist3d_cuda', [
+            'pspDist3d_cuda.cpp',
+            'pspDist3d_cuda_kernel.cu',
         ]),
-        CUDAExtension('smear_3d_cuda', [
-            'smear_cuda.cpp',
-            'smear_cuda_kernel.cu',
+        CUDAExtension('spFeatSmear3d_cuda', [
+            'spFeatSmear3d_cuda.cpp',
+            'spFeatSmear3d_cuda_kernel.cu',
         ]),
-        CUDAExtension('relToAbsIndex_3d_cuda', [  # no backward
-            'relToAbsIndex_cuda.cpp',
-            'relToAbsIndex_cuda_kernel.cu',
-        ]),
-        CUDAExtension('hierFeat_cuda', [  # no backward
-            'hierFeat_cuda.cpp',
-            'hierFeat_cuda_kernel.cu',
+        CUDAExtension('relToAbsIndex3d_cuda', [  # no backward
+            'relToAbsIndex3d_cuda.cpp',
+            'relToAbsIndex3d_cuda_kernel.cu',
         ]),
     ],
     cmdclass={
         'build_ext': BuildExtension
     })
+

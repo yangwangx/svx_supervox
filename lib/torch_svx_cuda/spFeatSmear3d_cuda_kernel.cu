@@ -22,11 +22,11 @@ static inline  __device__  void atomicAdd(double *address, double val) {
 
 namespace {
 template <typename scalar_t>
-__global__ void smear_cuda_forward_kernel(
+__global__ void spFeatSmear3d_cuda_forward_kernel(
     const torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> spFeat,
     const torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> spIndx,
-    torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> img_spFeat,
-    int batch_size, int depth, int length, int height, int width, int K) {
+    torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> pFeat,
+    int depth, int length, int height, int width, int K) {
     // indexing
     const int n = blockIdx.y;
     int d = blockIdx.x * blockDim.x + threadIdx.x;
@@ -35,20 +35,20 @@ __global__ void smear_cuda_forward_kernel(
     d %= HW;
     const int h = d / width;
     const int w = d % width;
-    const int spixel_idx = static_cast<int>(spIndx[n][0][l][h][w]);
+    const int spix_idx = static_cast<int>(spIndx[n][0][l][h][w]);
     if (l < length) {
         for (int k = 0; k < depth; k++) {
-            img_spFeat[n][k][l][h][w] = spFeat[n][k][spixel_idx];
+            pFeat[n][k][l][h][w] = spFeat[n][k][spix_idx];
         }
     }
 }
 
 template <typename scalar_t>
-__global__ void smear_cuda_backward_kernel(
-    const torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> grad_img_spFeat,
+__global__ void spFeatSmear3d_cuda_backward_kernel(
+    const torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> grad_pFeat,
     const torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> spIndx,
     torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> grad_spFeat,
-    int batch_size, int depth, int length, int height, int width) {
+    int depth, int length, int height, int width) {
     // indexing
     const int n = blockIdx.y;
     int d = blockIdx.x * blockDim.x + threadIdx.x;
@@ -57,17 +57,17 @@ __global__ void smear_cuda_backward_kernel(
     d %= HW;
     const int h = d / width;
     const int w = d % width;
-    const int spixel_idx = static_cast<int>(spIndx[n][0][l][h][w]);
+    const int spix_idx = static_cast<int>(spIndx[n][0][l][h][w]);
     
     if (l < length) {
         for (int k = 0; k < depth; k++) {
-            atomicAdd(&grad_spFeat[n][k][spixel_idx], grad_img_spFeat[n][k][l][h][w]);
+            atomicAdd(&grad_spFeat[n][k][spix_idx], grad_pFeat[n][k][l][h][w]);
         }
     }
 }
 } // namespace
 
-torch::Tensor smear_cuda_forward(
+torch::Tensor spFeatSmear3d_cuda_forward(
     const torch::Tensor spFeat,  // B C K
     const torch::Tensor spIndx) {  // B 1 L H W
     // setup
@@ -77,45 +77,45 @@ torch::Tensor smear_cuda_forward(
     const auto length = spIndx.size(2);
     const auto height  = spIndx.size(3);
     const auto width  = spIndx.size(4);
-    auto img_spFeat = torch::zeros({batch_size, depth, length, height, width},
+    auto pFeat = torch::zeros({batch_size, depth, length, height, width},
         torch::TensorOptions().dtype(spFeat.dtype()).device(
             spFeat.device()).requires_grad(spFeat.requires_grad()));  // B C L H W
     // launch kernel
     const int threads = 1024;
     const dim3 blocks((length * height * width + threads - 1) / threads, batch_size);
-    AT_DISPATCH_FLOATING_TYPES(spFeat.type(), "smear_forward_cuda", ([&] {
-        smear_cuda_forward_kernel<scalar_t><<<blocks, threads>>>(
+    AT_DISPATCH_FLOATING_TYPES(spFeat.type(), "spFeatSmear3d_forward_cuda", ([&] {
+        spFeatSmear3d_cuda_forward_kernel<scalar_t><<<blocks, threads>>>(
             spFeat.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>(),
             spIndx.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
-            img_spFeat.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
-            batch_size, depth, length, height, width, K);
+            pFeat.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
+            depth, length, height, width, K);
     }));
 
-    return img_spFeat;
+    return pFeat;
 }
 
 
-torch::Tensor smear_cuda_backward(
-    const torch::Tensor grad_img_spFeat,  // B C L H W
+torch::Tensor spFeatSmear3d_cuda_backward(
+    const torch::Tensor grad_pFeat,  // B C L H W
     const torch::Tensor spIndx,  // B 1 L H W
     const int K) {
     // setup
-    const auto batch_size = grad_img_spFeat.size(0);
-    const auto depth = grad_img_spFeat.size(1);
-    const auto length = grad_img_spFeat.size(2);
-    const auto height  = grad_img_spFeat.size(3);
-    const auto width  = grad_img_spFeat.size(4);
+    const auto batch_size = grad_pFeat.size(0);
+    const auto depth = grad_pFeat.size(1);
+    const auto length = grad_pFeat.size(2);
+    const auto height  = grad_pFeat.size(3);
+    const auto width  = grad_pFeat.size(4);
     auto grad_spFeat = torch::zeros({batch_size, depth, K},
-        torch::TensorOptions().dtype(grad_img_spFeat.dtype()).device(grad_img_spFeat.device()).requires_grad(false));  // B C K
+        torch::TensorOptions().dtype(grad_pFeat.dtype()).device(grad_pFeat.device()).requires_grad(false));  // B C K
     // launch kernel
     const int threads = 1024;
     const dim3 blocks((length * height * width + threads - 1) / threads, batch_size);
-    AT_DISPATCH_FLOATING_TYPES(grad_img_spFeat.type(), "smear_backward_cuda", ([&] {
-        smear_cuda_backward_kernel<scalar_t><<<blocks, threads>>>(
-            grad_img_spFeat.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
+    AT_DISPATCH_FLOATING_TYPES(grad_pFeat.type(), "spFeatSmear3d_backward_cuda", ([&] {
+        spFeatSmear3d_cuda_backward_kernel<scalar_t><<<blocks, threads>>>(
+            grad_pFeat.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
             spIndx.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
             grad_spFeat.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>(),
-            batch_size, depth, length, height, width);
+            depth, length, height, width);
     }));
 
     return grad_spFeat;

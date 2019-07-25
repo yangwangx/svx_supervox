@@ -29,5 +29,5 @@ torch::Tensor relToAbsIndex2d_forward(
 
 /* Python Binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-  m.def("forward", &relToAbsIndex2d_forward, "relToAbsIndex2d forward (CUDA)");
+   m.def("forward", &relToAbsIndex2d_forward, "relToAbsIndex2d forward (CUDA)");
 }

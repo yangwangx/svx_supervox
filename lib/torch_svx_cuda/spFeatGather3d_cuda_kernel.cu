@@ -22,7 +22,7 @@ static inline  __device__  void atomicAdd(double *address, double val) {
 
 namespace {
 template <typename scalar_t>
-__global__ void spFeatGather3dcuda_forward_kernel(
+__global__ void spFeatGather3d_cuda_forward_kernel(
     const torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> pFeat,
     const torch::PackedTensorAccessor<scalar_t,5,torch::RestrictPtrTraits,size_t> init_spIndx,
     torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> spFeat,
@@ -37,28 +37,28 @@ __global__ void spFeatGather3dcuda_forward_kernel(
     const int h = d / width;
     const int w = d % width;
     if (l < length) {
-        const int spixel_idx = static_cast<int>(init_spIndx[n][0][l][h][w]);
-        if (spixel_idx != ignore_idx_value) {
+        const int spix_idx = static_cast<int>(init_spIndx[n][0][l][h][w]);
+        if (spix_idx != ignore_idx_value) {
             for (int k = 0; k < depth; k++) {
-                atomicAdd(&spFeat[n][k][spixel_idx], pFeat[n][k][l][h][w]);
+                atomicAdd(&spFeat[n][k][spix_idx], pFeat[n][k][l][h][w]);
             }
-            atomicAdd(&spSize[n][spixel_idx], 1.0);
+            atomicAdd(&spSize[n][spix_idx], 1.0);
         }
     }
 }
 
 template <typename scalar_t>
-__global__ void spFeatGather3dnormalize_cuda_forward_kernel(
+__global__ void spFeatGather3d_normalize_cuda_forward_kernel(
     torch::PackedTensorAccessor<scalar_t,3,torch::RestrictPtrTraits,size_t> spFeat,
     const torch::PackedTensorAccessor<scalar_t,2,torch::RestrictPtrTraits,size_t> spSize,
-    int depth, int K, float ignore_feature_value) {
+    int depth, int K, int ignore_feature_value) {
     // indexing
     const int n = blockIdx.y;
     const int spix_idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (spix_idx < K) {
-        bool zeroWght = (spSize[n][spix_idx] < 0.001);
+        bool zeroSize = (spSize[n][spix_idx] < 0.001);
         for (int k = 0; k < depth; k++) {
-            if (zeroWght) {
+            if (zeroSize) {
                 spFeat[n][k][spix_idx] = ignore_feature_value;
             } else {
                 spFeat[n][k][spix_idx] /= spSize[n][spix_idx];
@@ -68,12 +68,12 @@ __global__ void spFeatGather3dnormalize_cuda_forward_kernel(
 }
 } //namespace
 
-std::vector<torch::Tensor> spFeatGather3dcuda_forward(
+std::vector<torch::Tensor> spFeatGather3d_cuda_forward(
     const torch::Tensor pFeat,  // B C L H W
     const torch::Tensor init_spIndx,  // B 1 L H W
     const int K,
     const int ignore_idx_value,
-    const float ignore_feature_value) {
+    const int ignore_feature_value) {
     // setup
     const auto batch_size = pFeat.size(0);
     const auto depth = pFeat.size(1);
@@ -87,17 +87,17 @@ std::vector<torch::Tensor> spFeatGather3dcuda_forward(
     // launch kernel
     const int threads = 1024;
     const dim3 blocks((length * height * width + threads - 1) / threads, batch_size);
-    AT_DISPATCH_FLOATING_TYPES(pFeat.type(), "spFeatGather3dforward_cuda", ([&] {
-        spFeatGather3dcuda_forward_kernel<scalar_t><<<blocks, threads>>>(
+    AT_DISPATCH_FLOATING_TYPES(pFeat.type(), "spFeatGather3d_forward_cuda", ([&] {
+        spFeatGather3d_cuda_forward_kernel<scalar_t><<<blocks, threads>>>(
             pFeat.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
             init_spIndx.packed_accessor<scalar_t,5,torch::RestrictPtrTraits,size_t>(),
             spFeat.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>(),
             spSize.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
-            depth, length, height, width, K, ignore_idx_value);
+            depth, length, height, width, ignore_idx_value);
     }));
     const dim3 blocks2((K + threads - 1) / threads, batch_size);
-    AT_DISPATCH_FLOATING_TYPES(pFeat.type(), "spFeatGather3dnormalize_forward_cuda", ([&] {
-        spFeatGather3dnormalize_cuda_forward_kernel<scalar_t><<<blocks2, threads>>>(
+    AT_DISPATCH_FLOATING_TYPES(pFeat.type(), "spFeatGather3d_normalize_forward_cuda", ([&] {
+        spFeatGather3d_normalize_cuda_forward_kernel<scalar_t><<<blocks2, threads>>>(
             spFeat.packed_accessor<scalar_t,3,torch::RestrictPtrTraits,size_t>(),
             spSize.packed_accessor<scalar_t,2,torch::RestrictPtrTraits,size_t>(),
             depth, K, ignore_feature_value);

@@ -11,6 +11,6 @@ class RelToAbsIndex2d(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, grad_absIndx):
-        return None, None
+        return None, None, None, None
 
 relToAbsIndex2d = RelToAbsIndex2d.apply
