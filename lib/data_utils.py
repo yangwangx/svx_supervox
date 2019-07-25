@@ -1,21 +1,6 @@
 import numpy as np
-from scipy.ndimage import zoom
-from scipy import interpolate
 from skimage.segmentation import mark_boundaries
-
-def get_rand_scale_factor():
-    """draws a value from Normal(1, 0.75), clips it between [0.75, 3.0]"""
-    return np.max((0.75, np.min((3.0, np.random.normal(1, 0.75)))))
-
-def scale_image(img, s_factor):
-    """scales image (numpy array [H, W, 3]) by s_factor"""
-    s_img = zoom(img, (s_factor, s_factor, 1), order=1)
-    return s_img
-
-def scale_label(label, s_factor):
-    """scales segmentation label (numpy array [H, W]) by s_factor"""
-    s_label = zoom(label, (s_factor, s_factor), order = 0)
-    return s_label
+from scipy import interpolate
 
 def get_spixel_image(img, spix_index):
     """marks superpixel boundaries on the image"""
@@ -44,26 +29,5 @@ def get_spixel_init(num_spixels, img_height, img_width):
     all_points = np.reshape(all_grid, (2, img_width * img_height)).transpose()
 
     spixel_initmap = f(all_points).reshape((img_height, img_width))
-    spixel_initmap = spixel_initmap[None, :, :]  # 1 H W
+    spixel_initmap = spixel_initmap  # H W
     return spixel_initmap, k_h, k_w
-
-def convert_label(label, max_segments=50):
-    """converts segmentation label to one-hot vector.
-    Args:
-        label: numpy array, [H, W]
-    Returns:
-        label2: numpy array, [1, H, W]
-        problabel: numpy array, [50, H, W]
-    """
-    H, W = label.shape
-    problabel = np.zeros((max_segments, H, W), dtype=np.float32)
-    label_list = np.unique(label).tolist()
-    for i, lb in enumerate(label_list):
-        if i < max_segments:
-            problabel[i] = (label == lb)
-        else:
-            # print('\nOnly {} out of {} segments are used'.format(max_segments, len(label_list)))
-            break    
-    label2 = np.squeeze(np.argmax(problabel, axis=0))  # H W
-    label2 = np.expand_dims(label2, axis=0)            # 1 H W
-    return label2, problabel

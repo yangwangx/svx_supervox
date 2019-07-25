@@ -1,7 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as FF
+from .torch_ssn_cuda import *
 from .torch_svx_cuda import *
+from .torch_funcs import *
 
 __all__ = ['get_pFeat_yxlab', 'get_pFeat_tyxlab',  
            'SVX', 'SVX_hier', 'compute_loss']
@@ -30,11 +33,11 @@ def get_pFeat_tyxlab(vid_lab, t_scale, yx_scale, lab_scale):
     return pFeat_tyxlab
 
 def compute_psp_assoc(pFeat, spFeat, init_spIndx, Kl, Kh, Kw, scaling=-1.0):
-    return torch.softmax(scaling * compute_sqdist(pFeat, spFeat, init_spIndx, Kl, Kh, Kw), dim=1)  # Bx27xLxHxW
+    return torch.softmax(scaling * pspDist3d(pFeat, spFeat, init_spIndx, Kl, Kh, Kw), dim=1)  # Bx27xLxHxW
 
 def compute_final_spixel_labels(psp_assoc, init_spIndx, Kl, Kh, Kw):
     relIndx = torch.argmax(psp_assoc.detach(), dim=1, keepdim=True)  # Bx1xLxHxW
-    absIndx = relToAbsIndex(relIndx.float(), init_spIndx, Kl, Kh, Kw)  # Bx1xLxHxW
+    absIndx = relToAbsIndex3d(relIndx.float(), init_spIndx, Kl, Kh, Kw)  # Bx1xLxHxW
     return absIndx
 
 def relu_L1(data, dim=1):
@@ -66,7 +69,7 @@ def soft_smear(spFeat, psp_assoc, init_spIndx, Kl, Kh, Kw):
     spFeat_concat = FF.conv3d(spFeat, W_concat, bias=None, stride=1, padding=1, groups=C)
     spFeat_concat = spFeat_concat.view(B, C*27, K)  # B C27 K
     # spread features to pixels
-    img_spFeat_concat = smear(spFeat_concat, init_spIndx)  # B C27 L H W
+    img_spFeat_concat = spFeatSmear3d(spFeat_concat, init_spIndx)  # B C27 L H W
     # weighted sum
     img_spFeat_concat = img_spFeat_concat.view(B, C, 27, L, H, W)
     psp_assoc = psp_assoc.view(B, 1, 27, L, H, W)
@@ -132,13 +135,13 @@ class SVX(nn.Module):
         else:
             pFeat = pFeat_tyxlab
         # initial superpixel features
-        spFeat, _ = SpixelFeature(pFeat, init_spIndx, Kl*Kh*Kw)  # BxCxK
+        spFeat, _ = spFeatGather3d(pFeat, init_spIndx, Kl*Kh*Kw)  # BxCxK
         # multiple iteration
         for i in range(1, self.num_steps):
             # compute pixel-superpixel assignments
             psp_assoc = compute_psp_assoc(pFeat, spFeat, init_spIndx, Kl, Kh, Kw, scaling=self.softscale)  # Bx27xLxHxW
             # compute superpixel features
-            spFeat, _ = SpixelFeature_update(pFeat, psp_assoc, init_spIndx, Kl, Kh, Kw)  # BxCx1x1xK
+            spFeat, _ = spFeatUpdate3d(pFeat, psp_assoc, init_spIndx, Kl, Kh, Kw)
         # compute final_psp_assoc
         psp_assoc = compute_psp_assoc(pFeat, spFeat, init_spIndx, Kl, Kh, Kw, scaling=self.softscale)  # Bx27xLxHxW
         final_spIndx = compute_final_spixel_labels(psp_assoc, init_spIndx, Kl, Kh, Kw)
@@ -147,11 +150,11 @@ class SVX(nn.Module):
 def compute_loss(pFeat, final_psp_assoc, init_spIndx, final_spIndx, onehot, Kl, Kh, Kw):
     pFeat_tyxlab = pFeat[:, :6].contiguous()
     # cycle loss for position
-    spFeat_tyxlab = SpixelFeature_update(pFeat_tyxlab, final_psp_assoc, init_spIndx, Kl, Kh, Kw)
-    recon_tyxlab = smear(spFeat_tyxlab, final_spIndx.float())
+    spFeat_tyxlab, _ = spFeatUpdate3d(pFeat_tyxlab, final_psp_assoc, init_spIndx, Kl, Kh, Kw)
+    recon_tyxlab = spFeatSmear3d(spFeat_tyxlab, final_spIndx.float())
     loss_pos, loss_col = position_color_loss(recon_tyxlab, pFeat_tyxlab)
     # cycle loss for label
-    spLabel = SpixelFeature_update(onehot, final_psp_assoc, init_spIndx, Kl, Kh, Kw)    
+    spLabel, _ = spFeatUpdate3d(onehot, final_psp_assoc, init_spIndx, Kl, Kh, Kw)    
     # Convert spixel labels back to pixel labels
     recon_label = soft_smear(spLabel, final_psp_assoc, init_spIndx, Kl, Kh, Kw)
     recon_label = relu_L1(recon_label)  # B 2 L H W
@@ -174,7 +177,7 @@ def init_kmeans_feature(spFeat, hier_K):
             hier_spFeat[b] = spFeat[b, :, idxs]
     return hier_spFeat  # B C hier_K
 
-def hierSVX(spFeat, spSize, r=0.5, unfold=8):
+def hierSVX(spFeat, spSize, r=0.5, unfold=10):
     with torch.no_grad():
         B, C, K = spFeat.shape
         hier_K = int(r * K)
@@ -182,7 +185,7 @@ def hierSVX(spFeat, spSize, r=0.5, unfold=8):
         # hard kmeans
         for i in range(unfold):
             hier_assign = torch.argmin(batch_pairwise_distances_col(spFeat, hier_spFeat), dim=2).float()
-            hier_spFeat, hier_spSize = hierFeat_collect(spFeat, spSize, hier_assign, hier_K)
+            hier_spFeat, hier_spSize = hierFeatGather(spFeat, spSize, hier_assign, hier_K)
     return hier_assign, hier_spFeat, hier_spSize
 
 # create_ssn_net
@@ -202,23 +205,21 @@ class SVX_hier(SVX):
             pFeat = pFeat_tyxlab
         B, C, L, H, W = pFeat.shape
         # initial superpixel features
-        spFeat, _ = SpixelFeature(pFeat, init_spIndx, Kl*Kh*Kw)  # BxCxK
+        spFeat, _ = spFeatGather3d(pFeat, init_spIndx, Kl*Kh*Kw)  # BxCxK
         # multiple iteration
         for i in range(1, self.num_steps):
             # compute pixel-superpixel assignments
             psp_assoc = compute_psp_assoc(pFeat, spFeat, init_spIndx, Kl, Kh, Kw, scaling=self.softscale)  # Bx27xLxHxW
             # compute superpixel features
-            spFeat = SpixelFeature_update(pFeat, psp_assoc, init_spIndx, Kl, Kh, Kw)  # BxCx1x1xK
+            spFeat, _ = spFeatUpdate3d(pFeat, psp_assoc, init_spIndx, Kl, Kh, Kw)  # BxCx1x1xK
         # compute final_psp_assoc
         psp_assoc = compute_psp_assoc(pFeat, spFeat, init_spIndx, Kl, Kh, Kw, scaling=self.softscale)  # Bx27xLxHxW
         final_spIndx = compute_final_spixel_labels(psp_assoc, init_spIndx, Kl, Kh, Kw)   
         with torch.no_grad():
             # hier kmeans
             K = Kl*Kh*Kw
-            spFeat, spSize = SpixelFeature(pFeat, final_spIndx.float(), K)
-            spFeat = spFeat.view(B, C, K)
-            spSize = spSize.view(B, K)
-            hier_assign, _, _ = hierSVX(spFeat, spSize, r=self.ratio, unfold=8)
+            spFeat, spSize = spFeatGather3d(pFeat, final_spIndx.float(), K)
+            hier_assign, _, _ = hierSVX(spFeat, spSize, r=self.ratio, unfold=10)
             # final_spIndx: B 1 L H W
             # hier_assign:  B K
             hier_assign = hier_assign.long().view(B, K, 1, 1, 1).expand(B, K, L, H, W)

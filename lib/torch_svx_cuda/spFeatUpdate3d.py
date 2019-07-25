@@ -1,7 +1,7 @@
 import torch
 import spFeatUpdate3d_cuda
 
-__all__ = ['spFeatureUpdate3d']
+__all__ = ['spFeatUpdate3d']
 
 class SPFeatUpdate3d(torch.autograd.Function):
     @staticmethod

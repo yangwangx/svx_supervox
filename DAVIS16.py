@@ -141,7 +141,7 @@ if __name__ == '__main__':
             ims, gts, onehots = samples
             im = img_as_uint(lab2rgb(np.moveaxis(ims[:, 5].numpy(), 0, 2))) # H W 3, uint8
             gt = img_as_uint(np.repeat(gts[5].numpy()[:, :, None], 3, axis=2).astype(np.float32)) # H W 3, uint8
-            imageio.imwrite('temp1.png', np.concatenate([im, gt], axis=1))
+            # imageio.imwrite('temp1.png', np.concatenate([im, gt], axis=1))
     if True:
         dataset = DAVIS16_eval()
         samples = random.choice(dataset)
@@ -150,4 +150,4 @@ if __name__ == '__main__':
             ims, gts = samples
             im = img_as_uint(lab2rgb(np.moveaxis(ims[:, 5].numpy(), 0, 2))) # H W 3, uint8
             gt = img_as_uint(np.repeat(gts[5].numpy()[:, :, None], 3, axis=2).astype(np.float32)) # H W 3, uint8
-            imageio.imwrite('temp2.png', np.concatenate([im, gt], axis=1))
+            # imageio.imwrite('temp2.png', np.concatenate([im, gt], axis=1))

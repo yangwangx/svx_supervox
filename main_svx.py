@@ -1,5 +1,4 @@
-from DAVIS16 import DAVIS16_train, DAVIS16_eval  # dataset
-from create_net import SVX, SVX_hier, compute_loss  # model
+from DAVIS16 import *  # dataset
 from utils import *
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
@@ -8,7 +7,7 @@ parser = get_base_parser()
 # data
 parser.add_argument('--crop_size', default=[16, 201, 201], type=int, nargs='+', dest='crop_size')
 # model input
-parser.add_argument('--p_scale', default=0.25, type=float, help='control scale factor for TYX channel')
+parser.add_argument('--p_scale', default=0.25, type=float, help='control factor for TYX channel')
 parser.add_argument('--color_scale', default=0.26, type=float, help='scale factor for LAB channel')
 parser.add_argument('--n_sv', default=100, type=int, help='number of superpixels in frame')
 parser.add_argument('--t_sv', default=3, type=int, help='number of superpixels in time')
