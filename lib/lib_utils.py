@@ -1,13 +1,17 @@
 import numpy as np
-from skimage.segmentation import mark_boundaries
-from scipy import interpolate
+import torch
+import torch.nn as nn
+import torch.nn.functional as FF
 
+
+from skimage.segmentation import mark_boundaries
 def get_spixel_image(img, spix_index):
     """marks superpixel boundaries on the image"""
-    spixel_image = mark_boundaries(img / 255., spix_index.astype(int), color=(1, 1, 0))
+    spixel_image = mark_boundaries(img / 255., spix_index.astype(int), color=(1, 0, 0))
     spixel_image = (spixel_image * 255).astype(np.uint8)
     return spixel_image
 
+from scipy import interpolate
 def get_spixel_init(num_spixels, img_height, img_width):
     """computes initial superpixel index maps"""
     k = num_spixels
