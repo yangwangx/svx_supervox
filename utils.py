@@ -5,23 +5,20 @@ from easydict import EasyDict as edict
 import random, math, numpy as np
 import cv2, imageio
 from PIL import Image
-from skimage.color import rgb2lab
-from skimage.util import img_as_float
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as FF
 import torch.utils.data as DD
 import torchvision
-import torchvision.utils as vutils
 from tensorboardX import SummaryWriter
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 try:
-    cwd = os.path.dirname(os.path.abspath(__file__)) + '/'
+    CWD = os.path.dirname(os.path.abspath(__file__)) + '/'
 except NameError:
-    cwd = ''
-sys.path.append(cwd)
+    CWD = ''
+sys.path.append(CWD)
 from lib import *
 
 def get_empty_parser():

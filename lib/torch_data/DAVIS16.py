@@ -1,7 +1,7 @@
 import os, sys, glob, random, numpy as np
 import imageio
-from skimage.util import img_as_uint, img_as_float
-from skimage.color import rgb2lab, lab2rgb
+from skimage.util import img_as_float
+from skimage.color import rgb2lab
 from scipy.ndimage import zoom
 import torch
 import torch.utils.data as DD
@@ -12,7 +12,7 @@ except NameError:
 
 __all__ = ['DAVIS16_train', 'DAVIS16_eval']
 
-dataRoot = os.path.join(cwd, 'davis2016')
+dataRoot = os.path.join(cwd, 'davis2016')  # soft link
 trainRoot = os.path.join(dataRoot, 'DAVIS/JPEGImages/480p/')  # 00000.jpg
 trainGTRoot = os.path.join(dataRoot, 'DAVIS/Annotations/480p/')  # 00000.png
 evalRoot = os.path.join(dataRoot, 'libsvx/PNGImages/')   # 00001.png
