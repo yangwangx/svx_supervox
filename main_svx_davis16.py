@@ -1,4 +1,3 @@
-from DAVIS16 import *
 from utils import *
 import warnings
 warnings.filterwarnings('ignore', '.*output shape of zoom.*')
@@ -9,10 +8,13 @@ parser.add_argument('--crop_size', default=[16, 201, 201], type=int, nargs='+', 
 # model input
 parser.add_argument('--p_scale', default=0.25, type=float, help='control factor for TYX channel')
 parser.add_argument('--lab_scale', default=0.26, type=float, help='scale factor for LAB channel')
-parser.add_argument('--n_sv', default=100, type=int, help='number of superpixels in frame')
 parser.add_argument('--t_sv', default=3, type=int, help='number of superpixels in time')
+parser.add_argument('--n_sv', default=100, type=int, help='number of superpixels in frame')
 # cnn
 parser.add_argument('--no_cnn', dest='use_cnn', default=True, action='store_false')
+parser.add_argument('--cnn_in', default=6, type=int, help='number of input channels')
+parser.add_argument('--cnn_out', default=14, type=int, help='number of output channels')
+parser.add_argument('--cnn_ch', default=32, type=int, help='number of hidden channels')
 # kmeans
 parser.add_argument('--unfold', default=5, type=int)
 parser.add_argument('--softscale', default=-1.0, type=float)
@@ -40,7 +42,7 @@ def create_dataloader():
 
 def create_model():
     model = edict()
-    model.svx = SVX(use_cnn=opts.use_cnn, num_in=6, num_out=14, num_ch=32)
+    model.svx = SVX(use_cnn=opts.use_cnn, num_in=opts.cnn_in, num_out=opts.cnn_out, num_ch=opts.cnn_ch)
     for key in model.keys():
         model[key] = model[key].to(DEVICE)
         if DEVICE != "cpu": model[key] = nn.DataParallel(model[key])
