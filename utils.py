@@ -73,6 +73,13 @@ def manual_seed(seed):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+def mkdir(dirname):
+    os.makedirs(dirname, exist_ok=True)
+
+def mkdir_save(state, state_file):
+    mkdir(os.path.dirname(state_file))
+    torch.save(state, state_file)
+
 def print_options(opts, parser):
     message = ''
     message += '----------------- Options ---------------\n'
@@ -121,10 +128,6 @@ def create_scheduler(optimizer, opts):
         else:
             raise ValueError('learning rate policy "{}" not defined'.format(opts.LRPolicy))
     return scheduler
-
-def mkdir_save(state, state_file):
-    mkdir(os.path.dirname(state_file))
-    torch.save(state, state_file)
 
 def save_checkpoint(epoch, model, optimizer, opts):
     print('save model & optimizer @ epoch %d'%(epoch))
